@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>Welcome to Dashboard</h1>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+        
+        <div class="dashboard-content">
+            <div class="profile-section">
+                <div class="profile-image">
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face" alt="Profile Picture">
+                </div>
+                <div class="profile-info">
+                    <h2 id="userEmail">Loading...</h2>
+                    <p id="userName">Loading...</p>
+                </div>
+            </div>
+            
+            <div class="stats-section">
+                <div class="stat-card">
+                    <h3>Total Projects</h3>
+                    <p class="stat-number">12</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed</h3>
+                    <p class="stat-number">8</p>
+                </div>
+                <div class="stat-card">
+                    <h3>In Progress</h3>
+                    <p class="stat-number">4</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

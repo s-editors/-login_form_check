@@ -1,0 +1,8 @@
+{
+  "name": "login-form-check",
+  "version": "1.0.0",
+  "description": "Login form with Flask backend",
+  "scripts": {
+    "start": "python app.py"
+  }
+}
