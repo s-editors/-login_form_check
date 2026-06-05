@@ -11,8 +11,10 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip()
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or ""
+).strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError(
