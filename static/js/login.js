@@ -6,7 +6,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const message = document.getElementById('message');
     
     try {
-        const response = await fetch('http://localhost:5000/api/login', {
+        const response = await fetch('/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -21,7 +21,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             message.className = 'success';
             localStorage.setItem('user', JSON.stringify(data.user));
             setTimeout(() => {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/dashboard';
             }, 1000);
         } else {
             message.textContent = data.error || 'Login failed';
