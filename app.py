@@ -1,9 +1,10 @@
 import os
 
+import psycopg2
+import psycopg2.extras
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
-from supabase import Client, create_client
 from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
@@ -11,25 +12,30 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip()
-SUPABASE_KEY = (
-    os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or ""
-).strip()
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "Set SUPABASE_URL and SUPABASE_SERVICE_KEY in your environment or .env file"
-    )
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is required for Supabase/PostgreSQL")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
+
+
+def get_db_cursor(conn):
+    return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 
 def user_to_dict(user):
+    created_at = user["created_at"]
+    if hasattr(created_at, "isoformat"):
+        created_at = created_at.isoformat()
+
     return {
         "id": user["id"],
         "username": user["username"],
         "email": user["email"],
-        "created_at": user["created_at"],
+        "created_at": created_at,
     }
 
 
@@ -60,45 +66,45 @@ def register():
     if not username or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
 
-    existing_username = (
-        supabase.table("users").select("id").eq("username", username).execute()
-    )
-    if existing_username.data:
-        return jsonify({"error": "Username already exists"}), 400
-
-    existing_email = supabase.table("users").select("id").eq("email", email).execute()
-    if existing_email.data:
-        return jsonify({"error": "Email already exists"}), 400
-
-    hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
+    conn = get_db_connection()
+    cur = get_db_cursor(conn)
 
     try:
-        result = (
-            supabase.table("users")
-            .insert(
-                {
-                    "username": username,
-                    "email": email,
-                    "password": hashed_password,
-                }
-            )
-            .execute()
-        )
+        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+        if cur.fetchone():
+            return jsonify({"error": "Username already exists"}), 400
 
-        if not result.data:
-            return jsonify({"error": "Registration failed"}), 500
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if cur.fetchone():
+            return jsonify({"error": "Email already exists"}), 400
+
+        hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
+        cur.execute(
+            """
+            INSERT INTO users (username, email, password)
+            VALUES (%s, %s, %s)
+            RETURNING id, username, email, created_at
+            """,
+            (username, email, hashed_password),
+        )
+        user = cur.fetchone()
+        conn.commit()
 
         return (
             jsonify(
                 {
                     "message": "User registered successfully",
-                    "user": user_to_dict(result.data[0]),
+                    "user": user_to_dict(user),
                 }
             ),
             201,
         )
     except Exception:
+        conn.rollback()
         return jsonify({"error": "Registration failed"}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/login", methods=["POST"])
@@ -111,45 +117,64 @@ def login():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    result = (
-        supabase.table("users")
-        .select("id, username, email, password, created_at")
-        .or_(f"username.eq.{username},email.eq.{username}")
-        .execute()
-    )
+    conn = get_db_connection()
+    cur = get_db_cursor(conn)
 
-    if not result.data:
-        return jsonify({"error": "Invalid username or password"}), 401
-
-    user = result.data[0]
-
-    if check_password_hash(user["password"], password):
-        return (
-            jsonify(
-                {
-                    "message": "Login successful",
-                    "user": user_to_dict(user),
-                }
-            ),
-            200,
+    try:
+        cur.execute(
+            """
+            SELECT id, username, email, password, created_at
+            FROM users
+            WHERE username = %s OR email = %s
+            LIMIT 1
+            """,
+            (username, username),
         )
+        user = cur.fetchone()
 
-    return jsonify({"error": "Invalid username or password"}), 401
+        if not user:
+            return jsonify({"error": "Invalid username or password"}), 401
+
+        if check_password_hash(user["password"], password):
+            return (
+                jsonify(
+                    {
+                        "message": "Login successful",
+                        "user": user_to_dict(user),
+                    }
+                ),
+                200,
+            )
+
+        return jsonify({"error": "Invalid username or password"}), 401
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/user/<int:user_id>", methods=["GET"])
 def get_user(user_id):
-    result = (
-        supabase.table("users")
-        .select("id, username, email, created_at")
-        .eq("id", user_id)
-        .execute()
-    )
+    conn = get_db_connection()
+    cur = get_db_cursor(conn)
 
-    if not result.data:
-        return jsonify({"error": "User not found"}), 404
+    try:
+        cur.execute(
+            """
+            SELECT id, username, email, created_at
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,),
+        )
+        user = cur.fetchone()
 
-    return jsonify(user_to_dict(result.data[0]))
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify(user_to_dict(user))
+    finally:
+        cur.close()
+        conn.close()
 
 
 if __name__ == "__main__":
