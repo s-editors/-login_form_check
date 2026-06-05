@@ -17,9 +17,13 @@ DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is required for Supabase/PostgreSQL")
 
+# Render/Heroku sometimes provide postgres:// instead of postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 
 def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 
 def get_db_cursor(conn):
@@ -55,6 +59,20 @@ def dashboard_page():
     return render_template("dashboard.html")
 
 
+@app.route("/api/health")
+def health():
+    try:
+        conn = get_db_connection()
+        cur = get_db_cursor(conn)
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        cur.close()
+        conn.close()
+        return jsonify({"status": "ok", "database": "connected"}), 200
+    except Exception as exc:
+        return jsonify({"status": "error", "database": str(exc)}), 500
+
+
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json() or {}
@@ -66,10 +84,13 @@ def register():
     if not username or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
 
-    conn = get_db_connection()
-    cur = get_db_cursor(conn)
+    conn = None
+    cur = None
 
     try:
+        conn = get_db_connection()
+        cur = get_db_cursor(conn)
+
         cur.execute("SELECT id FROM users WHERE username = %s", (username,))
         if cur.fetchone():
             return jsonify({"error": "Username already exists"}), 400
@@ -99,12 +120,15 @@ def register():
             ),
             201,
         )
-    except Exception:
-        conn.rollback()
-        return jsonify({"error": "Registration failed"}), 500
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"Registration failed: {exc}"}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 @app.route("/api/login", methods=["POST"])
@@ -117,10 +141,13 @@ def login():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    conn = get_db_connection()
-    cur = get_db_cursor(conn)
+    conn = None
+    cur = None
 
     try:
+        conn = get_db_connection()
+        cur = get_db_cursor(conn)
+
         cur.execute(
             """
             SELECT id, username, email, password, created_at
@@ -147,17 +174,24 @@ def login():
             )
 
         return jsonify({"error": "Invalid username or password"}), 401
+    except Exception as exc:
+        return jsonify({"error": f"Login failed: {exc}"}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 @app.route("/api/user/<int:user_id>", methods=["GET"])
 def get_user(user_id):
-    conn = get_db_connection()
-    cur = get_db_cursor(conn)
+    conn = None
+    cur = None
 
     try:
+        conn = get_db_connection()
+        cur = get_db_cursor(conn)
+
         cur.execute(
             """
             SELECT id, username, email, created_at
@@ -172,9 +206,13 @@ def get_user(user_id):
             return jsonify({"error": "User not found"}), 404
 
         return jsonify(user_to_dict(user))
+    except Exception as exc:
+        return jsonify({"error": f"Failed to fetch user: {exc}"}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 if __name__ == "__main__":

@@ -31,7 +31,14 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             body: JSON.stringify({ username, email, password }),
         });
 
-        const data = await response.json();
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            message.textContent = 'Server returned an invalid response';
+            message.className = 'error';
+            return;
+        }
 
         if (response.ok) {
             message.textContent = 'Registration successful! Redirecting to login...';
@@ -45,8 +52,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             message.className = 'error';
         }
     } catch (error) {
-        message.textContent = 'Error connecting to server';
+        message.textContent = 'Cannot reach server. Check your internet or Render deployment.';
         message.className = 'error';
     }
 });
-

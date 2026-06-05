@@ -1,10 +1,10 @@
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     const message = document.getElementById('message');
-    
+
     try {
         const response = await fetch('/api/login', {
             method: 'POST',
@@ -13,9 +13,16 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             },
             body: JSON.stringify({ username, password })
         });
-        
-        const data = await response.json();
-        
+
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            message.textContent = 'Server returned an invalid response';
+            message.className = 'error';
+            return;
+        }
+
         if (response.ok) {
             message.textContent = 'Login successful!';
             message.className = 'success';
@@ -28,7 +35,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             message.className = 'error';
         }
     } catch (error) {
-        message.textContent = 'Error connecting to server';
+        message.textContent = 'Cannot reach server. Check your internet or Render deployment.';
         message.className = 'error';
     }
 });
