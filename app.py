@@ -8,7 +8,7 @@ from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
-
+sdfghjkl;
 app = Flask(__name__)
 CORS(app)
 
