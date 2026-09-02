@@ -1,11 +1,8 @@
-```python
-# This is a comment.
 import os
 
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
-```
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -216,8 +213,3 @@ def get_user(user_id):
             cur.close()
         if conn:
             conn.close()
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", debug=False, port=port)
