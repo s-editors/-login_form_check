@@ -1,8 +1,11 @@
+```python
+# This is a comment.
 import os
 
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+```
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
