@@ -7,8 +7,8 @@ from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# Removed invalid statement: load_dotenv()
-# Removed invalid statement: sdfghjkl;
+load_dotenv()
+sdfghjkl;
 app = Flask(__name__)
 CORS(app)
 
@@ -17,7 +17,8 @@ DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is required for Supabase/PostgreSQL")
 
-# Render/Heroku sometimes provide postgres:// instead of postgresql://if DATABASE_URL.startswith("postgres://"):
+# Render/Heroku sometimes provide postgres:// instead of postgresql://
+if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 
